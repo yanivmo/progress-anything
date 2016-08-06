@@ -17,12 +17,13 @@ class Rule(object):
     def match(self, text):
         text_to_match = text
         result = MatchResult()
+        expect_delimiter = False
 
         # Advance through the text, matching each iteration the next rule
-        for i, subrule in enumerate(self._rules):
+        for subrule in self._rules:
 
             # Ensure there is a delimiter between each rule
-            if i > 0:
+            if expect_delimiter:
                 delimiter, text_to_match = self.split_delimiter(text_to_match)
                 result.error_position += self.DELIMITER_LEN
                 if delimiter != self.DELIMITER:
@@ -41,6 +42,10 @@ class Rule(object):
 
                 # Track position in case we encounter an error
                 result.error_position += len(subrule_match.matching_text)
+
+                # If a rule matched an empty string, don't look for a delimiter
+                expect_delimiter = len(subrule_match.matching_text) > 0
+
             else:
                 result.is_matching = False
                 result.error_position += subrule_match.error_position
@@ -89,9 +94,20 @@ class OneOf:
         pass
 
 
-class Optional:
-    def __init__(self, *rules):
-        pass
+class Optional(Rule):
+    def __init__(self, name, *rules):
+        super().__init__(name, *rules)
+
+    def match(self, text):
+        result = super().match(text)
+        if not result.is_matching:
+            result.is_matching = True
+            result.matching_text = ''
+            result.remainder = text
+            result.tokens = {}
+            result.error_text = ''
+            result.error_position = 0
+        return result
 
 
 class MatchResult(object):

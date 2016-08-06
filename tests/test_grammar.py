@@ -1,7 +1,8 @@
 import unittest
 from src.grammar import \
     RegexRule, \
-    Rule
+    Rule, \
+    Optional
 
 
 class TestRegexRule(unittest.TestCase):
@@ -75,3 +76,47 @@ class TestRule(unittest.TestCase):
         m = r.match('a b c e f')
         self.assertFalse(m.is_matching)
         self.assertEqual(6, m.error_position, m.error_text)
+
+
+class TestOptionalRule(unittest.TestCase):
+
+    def test_simplest_rule(self):
+        r = Optional('r1', 'a')
+        m = r.match('a')
+        self.assertTrue(m.is_matching)
+        self.assertEqual('a', m.matching_text)
+        self.assertEqual('', m.remainder)
+        self.assertEqual('a', m.tokens['r1'])
+
+        m = r.match('b')
+        self.assertTrue(m.is_matching)
+        self.assertEqual('', m.matching_text)
+        self.assertEqual('b', m.remainder)
+        self.assertEqual(0, len(m.tokens))
+
+    def test_compound(self):
+        r = Rule('r1', 'a', Optional('r1.1', 'b'), Optional('r1.2', 'c', 'd'), 'e')
+        m = r.match('a b c d e')
+        self.assertTrue(m.is_matching)
+        self.assertEqual('a b c d e', m.matching_text)
+        self.assertEqual('', m.remainder)
+        self.assertEqual('a b c d e', m.tokens['r1'])
+        self.assertEqual('b', m.tokens['r1.1'])
+        self.assertEqual('c d', m.tokens['r1.2'])
+
+        m = r.match('a c d e f')
+        self.assertTrue(m.is_matching, m.error_text)
+        self.assertEqual('a c d e', m.matching_text)
+        self.assertEqual(' f', m.remainder)
+        self.assertEqual('a c d e', m.tokens['r1'])
+        self.assertFalse('r1.1' in m.tokens)
+        self.assertEqual('c d', m.tokens['r1.2'])
+
+        m = r.match('a e f')
+        self.assertTrue(m.is_matching, m.error_text)
+        self.assertEqual('a e', m.matching_text)
+        self.assertEqual(' f', m.remainder)
+        self.assertEqual('a e', m.tokens['r1'])
+        self.assertFalse('r1.1' in m.tokens)
+        self.assertFalse('r1.2' in m.tokens)
+
