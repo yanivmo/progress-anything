@@ -1,7 +1,18 @@
+"""
+Grammar parsing library
+
+- Tokens are returned up to the failing rule;
+- Reports precise error position and the failure reason
+"""
+
 import re
 
 
 class Rule(object):
+    """
+    This rule matches if all of its sub-rules match.
+    """
+
     DELIMITER = ' '
     DELIMITER_LEN = len(DELIMITER)
 
@@ -25,12 +36,13 @@ class Rule(object):
             # Ensure there is a delimiter between each rule
             if expect_delimiter:
                 delimiter, text_to_match = self.split_delimiter(text_to_match)
-                result.error_position += self.DELIMITER_LEN
                 if delimiter != self.DELIMITER:
                     result.is_matching = False
                     result.error_text = 'Expected a delimiter ("{}"). Instead found "{}"'.format(
-                        self.DELIMITER, delimiter),
+                        self.DELIMITER, delimiter)
                     break
+                else:
+                    result.error_position += self.DELIMITER_LEN
 
             # Try to match the next rule
             subrule_match = subrule.match(text_to_match)  # type: MatchResult
@@ -69,6 +81,10 @@ class Rule(object):
 
 
 class RegexRule(object):
+    """
+    A rule defined using a regular expression.
+    """
+
     def __init__(self, regex):
         self._regex = re.compile(regex)
 
@@ -90,11 +106,48 @@ class RegexRule(object):
 
 
 class OneOf:
+    """
+    This rule matches if one of its sub-rules matches.
+    """
+
     def __init__(self, *rules):
-        pass
+        self._rules = []
+        for rule in rules:
+            if str(rule) == rule:
+                self._rules.append(RegexRule(rule))
+            else:
+                self._rules.append(rule)
+
+    def match(self, text):
+        failures = []
+        furthest_failure_position = 0
+
+        for subrule in self._rules:
+            result = subrule.match(text)
+
+            if result.is_matching:
+                return result
+            else:
+                failures.append(result)
+                if result.error_position > furthest_failure_position:
+                    furthest_failure_position = result.error_position
+
+        # None of the rules matched
+        return MatchResult(
+            is_matching=False,
+            matching_text=text[:furthest_failure_position],
+            remainder=text[furthest_failure_position:],
+            tokens={},
+            error_position=furthest_failure_position,
+            error_text='\n'.join(set([e.error_text for e in failures if e.error_position == furthest_failure_position]))
+        )
 
 
 class Optional(Rule):
+    """
+    An optional rule.
+    """
+
     def __init__(self, name, *rules):
         super().__init__(name, *rules)
 
