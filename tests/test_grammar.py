@@ -1,4 +1,5 @@
 import unittest
+
 from src.grammar import \
     RegexRule, \
     Rule, \
@@ -36,6 +37,7 @@ class TestRule(unittest.TestCase):
 
     def test_simplest_rule(self):
         r = Rule('r1', 'a')
+
         m = r.match('a')
         self.assertTrue(m.is_matching)
         self.assertEqual('a', m.matching_text)
@@ -48,6 +50,7 @@ class TestRule(unittest.TestCase):
 
     def test_chained_simplest_rules(self):
         r = Rule('r1', 'a', 'b', 'c')
+
         m = r.match('a b cdefg')
         self.assertTrue(m.is_matching)
         self.assertEqual('a b c', m.matching_text)
@@ -61,6 +64,19 @@ class TestRule(unittest.TestCase):
         m = r.match('a bdefg')
         self.assertFalse(m.is_matching)
         self.assertEqual(3, m.error_position, m.error_text)
+
+    def test_rule_without_delimiters(self):
+        r = Rule('r1', 'a', 'b', 'c').nod
+
+        m = r.match('a b cdefg')
+        self.assertFalse(m.is_matching)
+        self.assertEqual(1, m.error_position, m.error_text)
+
+        m = r.match('abcdefg')
+        self.assertTrue(m.is_matching)
+        self.assertEqual('abc', m.matching_text)
+        self.assertEqual('defg', m.remainder)
+        self.assertEqual('abc', m.tokens['r1'])
 
     def test_nested_rules(self):
         r = Rule('r1',

@@ -17,6 +17,7 @@ class Rule(object):
     DELIMITER_LEN = len(DELIMITER)
 
     def __init__(self, name, *rules):
+        self._match_delimiters = True
         self._name = name
         self._rules = []
         for rule in rules:
@@ -24,6 +25,12 @@ class Rule(object):
                 self._rules.append(RegexRule(rule))
             else:
                 self._rules.append(rule)
+
+    @property
+    def nod(self):
+        """Turn off delimiters"""
+        self._match_delimiters = False
+        return self
 
     def match(self, text):
         text_to_match = text
@@ -34,7 +41,7 @@ class Rule(object):
         for subrule in self._rules:
 
             # Ensure there is a delimiter between each rule
-            if expect_delimiter:
+            if self._match_delimiters and expect_delimiter:
                 delimiter, text_to_match = self.split_delimiter(text_to_match)
                 if delimiter != self.DELIMITER:
                     result.is_matching = False
@@ -105,7 +112,7 @@ class RegexRule(object):
             )
 
 
-class OneOf:
+class OneOf(object):
     """
     This rule matches if one of its sub-rules matches.
     """
