@@ -36,7 +36,7 @@ class TestRegexRule(unittest.TestCase):
 class TestRule(unittest.TestCase):
 
     def test_simplest_rule(self):
-        r = Rule('r1', 'a')
+        r = Rule('r1').defined_as('a')
 
         m = r.match('a')
         self.assertTrue(m.is_matching)
@@ -49,7 +49,7 @@ class TestRule(unittest.TestCase):
         self.assertEqual(0, m.error_position, m.error_text)
 
     def test_chained_simplest_rules(self):
-        r = Rule('r1', 'a', 'b', 'c')
+        r = Rule('r1').defined_as('a', 'b', 'c')
 
         m = r.match('a b cdefg')
         self.assertTrue(m.is_matching)
@@ -66,7 +66,7 @@ class TestRule(unittest.TestCase):
         self.assertEqual(3, m.error_position, m.error_text)
 
     def test_rule_without_delimiters(self):
-        r = Rule('r1', 'a', 'b', 'c').nod
+        r = Rule('r1').defined_as('a', 'b', 'c').nod
 
         m = r.match('a b cdefg')
         self.assertFalse(m.is_matching)
@@ -79,12 +79,12 @@ class TestRule(unittest.TestCase):
         self.assertEqual('abc', m.tokens['r1'])
 
     def test_nested_rules(self):
-        r = Rule('r1',
+        r = Rule('r1').defined_as(
                  'a',
-                 Rule('r1.1',
+                 Rule('r1.1').defined_as(
                       'b',
-                      Rule('r1.1.1', 'c', 'd')),
-                 Rule('r1.2', 'e'))
+                      Rule('r1.1.1').defined_as('c', 'd')),
+                 Rule('r1.2').defined_as('e'))
         m = r.match('a b c d e')
         self.assertTrue(m.is_matching)
         self.assertEqual('a b c d e', m.matching_text)
@@ -102,7 +102,7 @@ class TestRule(unittest.TestCase):
 class TestOptionalRule(unittest.TestCase):
 
     def test_simplest_rule(self):
-        r = Optional('r1', 'a')
+        r = Optional('r1').defined_as('a')
         m = r.match('a')
         self.assertTrue(m.is_matching)
         self.assertEqual('a', m.matching_text)
@@ -116,7 +116,12 @@ class TestOptionalRule(unittest.TestCase):
         self.assertEqual(0, len(m.tokens))
 
     def test_compound(self):
-        r = Rule('r1', 'a', Optional('r1.1', 'b'), Optional('r1.2', 'c', 'd'), 'e')
+        r = Rule('r1').defined_as(
+            'a',
+            Optional('r1.1').defined_as('b'),
+            Optional('r1.2').defined_as('c', 'd'),
+            'e')
+
         m = r.match('a b c d e')
         self.assertTrue(m.is_matching)
         self.assertEqual('a b c d e', m.matching_text)
@@ -169,9 +174,9 @@ class TestOneOfRule(unittest.TestCase):
         self.assertEqual(0, len(m.tokens))
 
     def test_compound(self):
-        r = OneOf(Rule('r1', 'a'),
-                  Rule('r2', 'b', '1'),
-                  Rule('r3', 'b', '2'))
+        r = OneOf(Rule('r1').defined_as('a'),
+                  Rule('r2').defined_as('b', '1'),
+                  Rule('r3').defined_as('b', '2'))
 
         m = r.match('a')
         self.assertTrue(m.is_matching)

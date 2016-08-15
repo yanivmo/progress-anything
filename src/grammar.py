@@ -16,15 +16,19 @@ class Rule(object):
     DELIMITER = ' '
     DELIMITER_LEN = len(DELIMITER)
 
-    def __init__(self, name, *rules):
+    def __init__(self, name=''):
         self._match_delimiters = True
         self._name = name
         self._rules = []
+
+    def defined_as(self, *rules):
+        """Define the rule expression"""
         for rule in rules:
             if str(rule) == rule:
                 self._rules.append(RegexRule(rule))
             else:
                 self._rules.append(rule)
+        return self
 
     @property
     def nod(self):
@@ -74,9 +78,11 @@ class Rule(object):
         if result.is_matching:
             result.matching_text = text[:-len(text_to_match)] if text_to_match else text
             result.remainder = text_to_match
-            if self._name in result.tokens:
-                raise GrammarTokenRedefiition(self._name)
-            result.tokens[self._name] = result.matching_text
+
+            if self._name:
+                if self._name in result.tokens:
+                    raise GrammarTokenRedefiition(self._name)
+                result.tokens[self._name] = result.matching_text
         else:
             result.matching_text = text[:result.error_position]
             result.remainder = text[result.error_position:]
@@ -155,8 +161,12 @@ class Optional(Rule):
     An optional rule.
     """
 
-    def __init__(self, name, *rules):
-        super().__init__(name, *rules)
+    def __init__(self, name):
+        super().__init__(name)
+
+    def defined_as(self, *rules):
+        super().defined_as(*rules)
+        return self
 
     def match(self, text):
         result = super().match(text)
