@@ -161,7 +161,7 @@ class Optional(Rule):
     An optional rule.
     """
 
-    def __init__(self, name):
+    def __init__(self, name=''):
         super().__init__(name)
 
     def defined_as(self, *rules):
@@ -207,4 +207,3 @@ class GrammarTokenRedefiition(Exception):
     """Raised if a grammar contains multiple tokens with the same name"""
     def __init__(self, token_name):
         super().__init__(token_name)
-
