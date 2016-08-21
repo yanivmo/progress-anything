@@ -43,4 +43,6 @@ class TestProgress(unittest.TestCase):
         self.assertEqual(datetime(1997, 10, 11, 7, 13, 33), unit.start_time)
 
         with self.assertRaises(UnitAlreadyStartedError):
-            p.update('876543213 Start Unit-1')
+            p.update('876543213 Start Unit-1. Overwrite!')
+        self.assertEqual('Overwrite!', p.units['Unit-1'].title)
+

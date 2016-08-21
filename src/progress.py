@@ -33,25 +33,36 @@ class Progress:
         )
 
     def update(self, progress_statement):
-        match = self.progress_grammar.match(progress_statement)
-        if not match.is_matching:
-            raise ProgressParsingError(progress_statement, match.error_position, match.error_text)
+        match_result = self.progress_grammar.match(progress_statement)
+        if not match_result.is_matching:
+            raise ProgressParsingError(progress_statement, match_result.error_position, match_result.error_text)
         else:
-            if 'step' in match.tokens:
-                pass
+            if 'step' in match_result.tokens:
+                self._handle_step(match_result)
+            elif 'start' in match_result.tokens:
+                self._handle_start(match_result)
+            elif 'end' in match_result.tokens:
+                self._handle_end(match_result)
+            else:
+                raise AssertionError('The statement matched but none of the statement types is present')
 
-            elif 'start' in match.tokens:
-                unit_id = match.tokens['unit id']
-                if unit_id in self._units:
-                    raise UnitAlreadyStartedError(unit_id, progress_statement)
-                else:
-                    self._units[unit_id] = Unit(
-                        unit_id, match.tokens['timestamp'],
-                        match.tokens['title'].strip() if 'title' in match.tokens else unit_id,
-                        int(match.tokens['steps count']) if 'steps count' in match.tokens else 100)
+    def _handle_start(self, match_result):
+        unit_id = match_result.tokens['unit id']
+        overwitten = unit_id in self._units
 
-            elif 'end' in match.tokens:
-                pass
+        self._units[unit_id] = Unit(
+            unit_id, match_result.tokens['timestamp'],
+            match_result.tokens['title'].strip() if 'title' in match_result.tokens else unit_id,
+            int(match_result.tokens['steps count']) if 'steps count' in match_result.tokens else 100)
+
+        if overwitten:
+            raise UnitAlreadyStartedError(unit_id, match_result.matching_text)
+
+    def _handle_step(self, match_result):
+        pass
+
+    def _handle_end(self, match_result):
+        pass
 
     @property
     def units(self):
