@@ -51,32 +51,15 @@ class TestRule(unittest.TestCase):
     def test_chained_simplest_rules(self):
         r = Rule('r1').defined_as('a', 'b', 'c')
 
-        m = r.match('a b cdefg')
-        self.assertTrue(m.is_matching)
-        self.assertEqual('a b c', m.matching_text)
-        self.assertEqual('defg', m.remainder)
-        self.assertEqual('a b c', m.tokens['r1'])
-
-        m = r.match('a b defg')
-        self.assertFalse(m.is_matching)
-        self.assertEqual(4, m.error_position, m.error_text)
-
-        m = r.match('a bdefg')
-        self.assertFalse(m.is_matching)
-        self.assertEqual(3, m.error_position, m.error_text)
-
-    def test_rule_without_delimiters(self):
-        r = Rule('r1').defined_as('a', 'b', 'c').nod
-
-        m = r.match('a b cdefg')
-        self.assertFalse(m.is_matching)
-        self.assertEqual(1, m.error_position, m.error_text)
-
         m = r.match('abcdefg')
         self.assertTrue(m.is_matching)
         self.assertEqual('abc', m.matching_text)
         self.assertEqual('defg', m.remainder)
         self.assertEqual('abc', m.tokens['r1'])
+
+        m = r.match('abdefg')
+        self.assertFalse(m.is_matching)
+        self.assertEqual(2, m.error_position, m.error_text)
 
     def test_nested_rules(self):
         r = Rule('r1').defined_as(
@@ -85,18 +68,18 @@ class TestRule(unittest.TestCase):
                       'b',
                       Rule('r1.1.1').defined_as('c', 'd')),
                  Rule('r1.2').defined_as('e'))
-        m = r.match('a b c d e')
+        m = r.match('abcde')
         self.assertTrue(m.is_matching)
-        self.assertEqual('a b c d e', m.matching_text)
+        self.assertEqual('abcde', m.matching_text)
         self.assertEqual('', m.remainder)
-        self.assertEqual('a b c d e', m.tokens['r1'])
-        self.assertEqual('b c d', m.tokens['r1.1'])
-        self.assertEqual('c d', m.tokens['r1.1.1'])
+        self.assertEqual('abcde', m.tokens['r1'])
+        self.assertEqual('bcd', m.tokens['r1.1'])
+        self.assertEqual('cd', m.tokens['r1.1.1'])
         self.assertEqual('e', m.tokens['r1.2'])
 
-        m = r.match('a b c e f')
+        m = r.match('abcef')
         self.assertFalse(m.is_matching)
-        self.assertEqual(6, m.error_position, m.error_text)
+        self.assertEqual(3, m.error_position, m.error_text)
 
 
 class TestOptionalRule(unittest.TestCase):
@@ -122,27 +105,27 @@ class TestOptionalRule(unittest.TestCase):
             Optional('r1.2').defined_as('c', 'd'),
             'e')
 
-        m = r.match('a b c d e')
+        m = r.match('abcde')
         self.assertTrue(m.is_matching)
-        self.assertEqual('a b c d e', m.matching_text)
+        self.assertEqual('abcde', m.matching_text)
         self.assertEqual('', m.remainder)
-        self.assertEqual('a b c d e', m.tokens['r1'])
+        self.assertEqual('abcde', m.tokens['r1'])
         self.assertEqual('b', m.tokens['r1.1'])
-        self.assertEqual('c d', m.tokens['r1.2'])
+        self.assertEqual('cd', m.tokens['r1.2'])
 
-        m = r.match('a c d e f')
+        m = r.match('acdef')
         self.assertTrue(m.is_matching, m.error_text)
-        self.assertEqual('a c d e', m.matching_text)
-        self.assertEqual(' f', m.remainder)
-        self.assertEqual('a c d e', m.tokens['r1'])
+        self.assertEqual('acde', m.matching_text)
+        self.assertEqual('f', m.remainder)
+        self.assertEqual('acde', m.tokens['r1'])
         self.assertFalse('r1.1' in m.tokens)
-        self.assertEqual('c d', m.tokens['r1.2'])
+        self.assertEqual('cd', m.tokens['r1.2'])
 
-        m = r.match('a e f')
+        m = r.match('aef')
         self.assertTrue(m.is_matching, m.error_text)
-        self.assertEqual('a e', m.matching_text)
-        self.assertEqual(' f', m.remainder)
-        self.assertEqual('a e', m.tokens['r1'])
+        self.assertEqual('ae', m.matching_text)
+        self.assertEqual('f', m.remainder)
+        self.assertEqual('ae', m.tokens['r1'])
         self.assertFalse('r1.1' in m.tokens)
         self.assertFalse('r1.2' in m.tokens)
 
@@ -186,19 +169,19 @@ class TestOneOfRule(unittest.TestCase):
         self.assertFalse('r2' in m.tokens)
         self.assertFalse('r3' in m.tokens)
 
-        m = r.match('b 1')
+        m = r.match('b1')
         self.assertTrue(m.is_matching)
-        self.assertEqual('b 1', m.matching_text)
+        self.assertEqual('b1', m.matching_text)
         self.assertEqual('', m.remainder)
-        self.assertEqual('b 1', m.tokens['r2'])
+        self.assertEqual('b1', m.tokens['r2'])
         self.assertFalse('r1' in m.tokens)
         self.assertFalse('r3' in m.tokens)
 
-        m = r.match('b 3')
+        m = r.match('b3')
         self.assertFalse(m.is_matching, m.error_text)
-        self.assertEqual('b ', m.matching_text)
+        self.assertEqual('b', m.matching_text)
         self.assertEqual('3', m.remainder)
-        self.assertEqual(2, m.error_position)
+        self.assertEqual(1, m.error_position)
         self.assertFalse('r1' in m.tokens)
         self.assertFalse('r2' in m.tokens)
         self.assertFalse('r3' in m.tokens)

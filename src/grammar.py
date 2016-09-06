@@ -13,11 +13,7 @@ class Rule(object):
     This rule matches if all of its sub-rules match.
     """
 
-    DELIMITER = ' '
-    DELIMITER_LEN = len(DELIMITER)
-
     def __init__(self, name=''):
-        self._match_delimiters = True
         self._name = name
         self._rules = []
 
@@ -31,30 +27,15 @@ class Rule(object):
         return self
 
     @property
-    def nod(self):
-        """Turn off delimiters"""
-        self._match_delimiters = False
-        return self
+    def rule_structure(self):
+        return self._name, [r.rule_structure for r in self._rules]
 
     def match(self, text):
         text_to_match = text
         result = MatchResult()
-        expect_delimiter = False
 
         # Advance through the text, matching each iteration the next rule
         for subrule in self._rules:
-
-            # Ensure there is a delimiter between each rule
-            if self._match_delimiters and expect_delimiter:
-                delimiter, text_to_match = self.split_delimiter(text_to_match)
-                if delimiter != self.DELIMITER:
-                    result.is_matching = False
-                    result.error_text = 'Expected a delimiter ("{}"). Instead found "{}"'.format(
-                        self.DELIMITER, delimiter)
-                    break
-                else:
-                    result.error_position += self.DELIMITER_LEN
-
             # Try to match the next rule
             subrule_match = subrule.match(text_to_match)  # type: MatchResult
             result.tokens.update(subrule_match.tokens)
@@ -62,13 +43,8 @@ class Rule(object):
             if subrule_match.is_matching:
                 # What is left after the current rule will be matched against the next rule
                 text_to_match = subrule_match.remainder  # type: str
-
                 # Track position in case we encounter an error
                 result.error_position += len(subrule_match.matching_text)
-
-                # If a rule matched an empty string, don't look for a delimiter
-                expect_delimiter = len(subrule_match.matching_text) > 0
-
             else:
                 result.is_matching = False
                 result.error_position += subrule_match.error_position
@@ -88,10 +64,6 @@ class Rule(object):
             result.remainder = text[result.error_position:]
         return result
 
-    @staticmethod
-    def split_delimiter(s):
-        return s[:Rule.DELIMITER_LEN], s[Rule.DELIMITER_LEN:]
-
 
 class RegexRule(object):
     """
@@ -99,7 +71,12 @@ class RegexRule(object):
     """
 
     def __init__(self, regex):
+        self._regex_text = regex
         self._regex = re.compile(regex)
+
+    @property
+    def rule_structure(self):
+        return self._regex_text
 
     def match(self, text):
         m = self._regex.match(text)
@@ -130,6 +107,10 @@ class OneOf(object):
                 self._rules.append(RegexRule(rule))
             else:
                 self._rules.append(rule)
+
+    @property
+    def rule_structure(self):
+        return [r.rule_structure for r in self._rules]
 
     def match(self, text):
         failures = []
