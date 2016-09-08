@@ -1,36 +1,89 @@
 from datetime import datetime
+from pprint import pprint
 
-from .grammar import Rule, OneOf, Optional
+from .grammar import Rule, OneOf, Optional, RegexRule
+
+
+class ProgressGrammar(Rule):
+    INTEGER = RegexRule(r'\d+')
+    DELIMITER = RegexRule(r' +')
+
+    timestamp = Rule('timestamp').defined_as(r'\d+\.\d+|\d+')
+
+    unit_id = Rule('unit_id').defined_as(r'[\w\-@#$%&.,:]{2,}\w')
+
+    steps_count = Optional().defined_as(
+        DELIMITER,
+        Rule('steps_count').defined_as(INTEGER),
+        r' steps'
+    )
+
+    expected_time = Optional().defined_as(
+        DELIMITER,
+        Rule('minutes').defined_as(INTEGER),
+        ' minutes',
+        Optional().defined_as(
+            DELIMITER,
+            Rule('seconds').defined_as(INTEGER),
+            ' seconds'
+        )
+    )
+
+    steps_and_time = Optional().defined_as(
+        ', expect', steps_count, expected_time
+    )
+
+    description = Optional().defined_as(r'\. ', Rule('description').defined_as(r'.*'))
+
+    start = Rule('start').defined_as(
+        'Start',
+        DELIMITER,
+        unit_id,
+        steps_and_time,
+        description
+    )
+
+    step = Rule('step').defined_as(
+        'Step',
+        DELIMITER,
+        unit_id,
+        Optional().defined_as(
+            DELIMITER,
+            Rule('step_number').defined_as(INTEGER),
+        ),
+        description
+    )
+
+    end = Rule('end').defined_as(
+        'End',
+        DELIMITER,
+        unit_id,
+        DELIMITER,
+        OneOf(
+            Rule('success').defined_as('SUCCESS'),
+            Rule('failure').defined_as('FAILURE')
+        )
+    )
+
+    def __init__(self):
+        super().__init__()
+
+        self.defined_as(
+            self.timestamp,
+            ' ',
+            OneOf(
+                self.start,
+                self.step,
+                self.end
+            )
+        )
 
 
 class Progress:
 
     def __init__(self):
         self._units = {}
-
-        unit_id = Rule('unit id').defined_as(r'[\w\-@#$%&.,:]{2,}\w')
-
-        steps_count = Optional('steps count clause').defined_as(
-            ', expect ', Rule('steps count').defined_as(r'\d+'), r' steps').nod
-
-        title = Optional().defined_as(r'\. ', Rule('title').defined_as(r'.*')).nod
-
-        start = Rule('start').defined_as(
-            'Start ', unit_id, steps_count, title
-        ).nod
-
-        step = Rule('step').defined_as(
-            'Step', unit_id, Optional('step').defined_as(r'\d+'), title
-        )
-
-        end = Rule('end').defined_as(
-            'End', unit_id, OneOf(Rule('success').defined_as('SUCCESS'), Rule('failure').defined_as('FAILURE'))
-        )
-
-        self.progress_grammar = Rule().defined_as(
-            Rule('timestamp').defined_as(r'\d+\.\d+|\d+'),
-            OneOf(start, step, end)
-        )
+        self.progress_grammar = ProgressGrammar()
 
     def update(self, progress_statement):
         match_result = self.progress_grammar.match(progress_statement)
@@ -47,13 +100,14 @@ class Progress:
                 raise AssertionError('The statement matched but none of the statement types is present')
 
     def _handle_start(self, match_result):
-        unit_id = match_result.tokens['unit id']
+        unit_id = match_result.tokens['unit_id']
         overwitten = unit_id in self._units
 
         self._units[unit_id] = Unit(
-            unit_id, match_result.tokens['timestamp'],
-            match_result.tokens['title'].strip() if 'title' in match_result.tokens else unit_id,
-            int(match_result.tokens['steps count']) if 'steps count' in match_result.tokens else 100)
+            unit_id,
+            match_result.tokens['timestamp'],
+            match_result.tokens['description'].strip() if 'description' in match_result.tokens else unit_id,
+            int(match_result.tokens['steps_count']) if 'steps_count' in match_result.tokens else 100)
 
         if overwitten:
             raise UnitAlreadyStartedError(unit_id, match_result.matching_text)
@@ -70,19 +124,26 @@ class Progress:
 
 
 class Unit(object):
-    def __init__(self, unit_id, start_time, title, steps):
+    def __init__(self, unit_id, start_time, description, steps_count):
         self.unit_id = unit_id
         self.start_time = datetime.fromtimestamp(int(start_time))
-        self.title = title
-        self.steps = int(steps)
+        self.description = description
+        self.steps_count = int(steps_count)
+        self._steps = []
 
-    def update(self):
+    def record_step(self, timestamp, title, value):
         pass
 
 
 class UnitAlreadyStartedError(Exception):
     def __init__(self, unit_id, statement):
         super().__init__('Unexpected start statement for a started unit {unit_id}:\n{statement}'.format(
+                         unit_id=unit_id, statement=statement))
+
+
+class UnknownUnitError(Exception):
+    def __init__(self, unit_id, statement):
+        super().__init__('Progress statement for an unknown unit {unit_id}:\n{statement}'.format(
                          unit_id=unit_id, statement=statement))
 
 
